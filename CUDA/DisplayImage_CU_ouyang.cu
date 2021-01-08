@@ -37,7 +37,7 @@ __global__ void bayer_reverse_kernel( float* input,int width,int height,int colo
   if((xIndex<width) && (yIndex<height)&& (yIndex >= 0) && (xIndex >= 0))
   {
     //Location of colored pixel in input
-    const int color_tid = yIndex * colorWidthStep + (3 * xIndex);
+    const int color_tid = yIndex * colorWidthStep/sizeof(float) + (3 * xIndex);
     // R B swap
     // const uint8_t t = input[color_tid + 0];
     // input[color_tid + 0] = input[color_tid+ 2];
@@ -89,18 +89,18 @@ __global__ void ACPIgreenH_kernel(float* d_input,int d_inputWidth,int d_inputHei
     
     if((xIndex<= d_inputWidth-4) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 2)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
       
-      a=d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
-      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+      a=d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]+d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1];
+      b=2*d_input[yIndex*d_inputStep/sizeof(float)+xIndex]-d_input[yIndex*d_inputStep/sizeof(float)+xIndex-2]-d_input[yIndex*d_inputStep/sizeof(float)+xIndex+2];
       sum = a+b/2;
     }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-4)&& (yIndex >= 3) && (xIndex >= 2)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
-      a= d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
-      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+      a= d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]+d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1];
+      b=2*d_input[yIndex*d_inputStep/sizeof(float)+xIndex]-d_input[yIndex*d_inputStep/sizeof(float)+xIndex-2]-d_input[yIndex*d_inputStep/sizeof(float)+xIndex+2];
       sum = a+b/2;
     }else{
-      d_value=d_input[yIndex*d_inputStep+xIndex];
+      d_value=d_input[yIndex*d_inputStep/sizeof(float)+xIndex];
       sum=d_value;
     }
-    gh.data[yIndex*gh.step+xIndex]=sum;
+    gh.data[yIndex*gh.step/sizeof(float)+xIndex]=sum;
     // for(int i = 3; i < nRow - 1; i += 2){y = 3 5 7 9....nRow-3
     //   for(int j = 2; j < nCol - 2; j += 2){x=2 4 6 8 ...nCol-4
     //     float a = CFA.atf(i,j-1) + CFA.atf(i,j+1);
@@ -131,18 +131,18 @@ __global__ void ACPIgreenV_kernel(float* d_input,int d_inputWidth,int d_inputHei
   {  
     if((xIndex<= d_inputWidth-4) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 2)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
       
-      a=d_input[ (yIndex-1) *d_inputStep+xIndex]+d_input[(yIndex+1)*d_inputStep+xIndex];
-      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[(yIndex-2)*d_inputStep+xIndex]-d_input[(yIndex+2)*d_inputStep+xIndex];
+      a=d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]+d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex];
+      b=2*d_input[yIndex*d_inputStep/sizeof(float)+xIndex]-d_input[(yIndex-2)*d_inputStep/sizeof(float)+xIndex]-d_input[(yIndex+2)*d_inputStep/sizeof(float)+xIndex];
       sum = a+b/2;
     }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-4)&& (yIndex >= 2) && (xIndex >= 3)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
-      a=d_input[ (yIndex-1) *d_inputStep+xIndex]+d_input[(yIndex+1)*d_inputStep+xIndex];
-      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[(yIndex-2)*d_inputStep+xIndex]-d_input[(yIndex+2)*d_inputStep+xIndex];
+      a=d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]+d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex];
+      b=2*d_input[yIndex*d_inputStep/sizeof(float)+xIndex]-d_input[(yIndex-2)*d_inputStep/sizeof(float)+xIndex]-d_input[(yIndex+2)*d_inputStep/sizeof(float)+xIndex];
       sum = a+b/2;
     }else{
-      d_value=d_input[yIndex*d_inputStep+xIndex];
+      d_value=d_input[yIndex*d_inputStep/sizeof(float)+xIndex];
       sum=d_value;
     }
-    gh.data[yIndex*gh.step+xIndex]=sum;
+    gh.data[yIndex*gh.step/sizeof(float)+xIndex]=sum;
     // for(int i = 3; i < nRow - 2; i += 2){ y = 3 5 7 9....nRow-3
     //   for(int j = 2; j < nCol - 3; j += 2){x=2 4 6 8 ...nCol-4
     //     float a = CFA.atf(i-1,j) + CFA.atf(i+1,j);
@@ -177,26 +177,26 @@ _global_ void DDFW_refine_RG_diff_kernel(float* d_input,int d_inputWidth,int d_i
     if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-2)&& (yIndex >= 4) && (xIndex >= 3)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
       vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
 
-      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      a = d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]*w[0] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex]*w[2] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]*w[3];
       b = w[0]+w[1]+w[2]+w[3];
       sum = a/b;
     }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 4) && (xIndex >= 4)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
       vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
 
-      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      a = d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]*w[0] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex]*w[2] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]*w[3];
       b = w[0]+w[1]+w[2]+w[3];
       sum = a/b;
     }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 3)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
       vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
 
-      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      a = d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]*w[0] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex]*w[2] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]*w[3];
       b = w[0]+w[1]+w[2]+w[3];
       sum = a/b;
     }else{
-      d_value=d_input[yIndex*d_inputStep+xIndex];
+      d_value=d_input[yIndex*d_inputStep/sizeof(float)+xIndex];
       sum=d_value;
     }
-    gh.data[yIndex*gh.step+xIndex]=sum;
+    gh.data[yIndex*gh.step/sizeof(float)+xIndex]=sum;
   }
 }
 
@@ -217,26 +217,26 @@ _global_ void DDFW_refine_BG_diff_kernel(float* d_input,int d_inputWidth,int d_i
     if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-4)&& (yIndex >= 3) && (xIndex >= 4)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
       vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
 
-      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      a = d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]*w[0] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex]*w[2] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]*w[3];
       b = w[0]+w[1]+w[2]+w[3];
       sum = a/b;
     }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 4) && (xIndex >= 4)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
       vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
 
-      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      a = d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]*w[0] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex]*w[2] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]*w[3];
       b = w[0]+w[1]+w[2]+w[3];
       sum = a/b;
     }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 3)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
       vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
 
-      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      a = d_input[ (yIndex-1) *d_inputStep/sizeof(float)+xIndex]*w[0] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep/sizeof(float)+xIndex]*w[2] + d_input[yIndex*d_inputStep/sizeof(float)+xIndex-1]*w[3];
       b = w[0]+w[1]+w[2]+w[3];
       sum = a/b;
     }else{
-      d_value=d_input[yIndex*d_inputStep+xIndex];
+      d_value=d_input[yIndex*d_inputStep/sizeof(float)+xIndex];
       sum=d_value;
     }
-    gh.data[yIndex*gh.step+xIndex]=sum;
+    gh.data[yIndex*gh.step/sizeof(float)+xIndex]=sum;
   }
 }
 // inline 
