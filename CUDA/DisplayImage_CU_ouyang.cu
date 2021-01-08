@@ -14,6 +14,7 @@
 #include "CycleTimer.h"
 using namespace cv;
 using namespace std;
+// using namespace cv::cuda;
 #define TESTITERAION 3
 #define BUSYNUM 1
 #define BLOCK_SIZE 2
@@ -25,7 +26,7 @@ float greenValue(Mat A,int type,float w1,float w2,int n,int i, int j);
 vector<float> WghtDir(Mat A,float k,float T);
 vector<float> CalcWeights(Mat A,float k);
 
-__global__ void bayer_reverse_kernel( uint8_t* input,int width,int height,int colorWidthStep)
+__global__ void bayer_reverse_kernel( float* input,int width,int height,int colorWidthStep)
 {
   //2D Index of current thread
   const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -72,11 +73,101 @@ __global__ void bayer_reverse_kernel( uint8_t* input,int width,int height,int co
   }
 }
 
-inline void bayer_reverse_cuda(const cv::Mat& input){
+// d_input,input.cols,input.rows,input.step,gh
+__global__ void ACPIgreenH_kernel(float* d_input,int d_inputWidth,int d_inputHeight,int d_inputStep,GPU::PtrStepSz<float3> gh){
+  const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+  const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+
+  //Only valid threads perform memory I/O
+  // x <= input.cols - 1 && y <= input.rows - 1 &&
+  float a=0.0,b=0.0,sum=0.0,d_value=0.0;
+  if((xIndex<d_inputWidth) && (yIndex<d_inputHeight)&& (yIndex >= 0) && (xIndex >= 0))
+  {
+    // CFA.copyTo(green);
+    // a= d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
+    // b=d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+    
+    if((xIndex<= d_inputWidth-4) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 2)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
+      
+      a=d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
+      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+      sum = a+b/2;
+    }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-4)&& (yIndex >= 3) && (xIndex >= 2)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
+      a= d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
+      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+      sum = a+b/2;
+    }else{
+      d_value=d_input[yIndex*d_inputStep+xIndex];
+      sum=d_value;
+    }
+    gh.data[yIndex*gh.step+xIndex]=sum;
+    // for(int i = 3; i < nRow - 1; i += 2){y = 3 5 7 9....nRow-3
+    //   for(int j = 2; j < nCol - 2; j += 2){x=2 4 6 8 ...nCol-4
+    //     float a = CFA.atf(i,j-1) + CFA.atf(i,j+1);
+    //     float b = 2*CFA.atf(i,j) - CFA.atf(i,j-2) - CFA.atf(i,j+2);
+    //     green.atf(i,j) = (a+b)/2;
+    //   }
+    // }
+    // for(int i = 2; i < nRow - 2; i += 2){y = 2 4 6 8 nRow-4
+    //   for(int j = 3; j < nCol - 1; j += 2){x=3 5 7..nCol-3
+    //     float a = CFA.atf(i,j-1) + CFA.atf(i,j+1);
+    //     float b = CFA.atf(i,j) - CFA.atf(i,j-2) - CFA.atf(i,j+2);
+    //     green.atf(i,j) = (a+b)/2;
+    //   }
+    // }
+    //Location of colored pixel in input
+    // const int color_tid = yIndex * d_inputStep + (3 * xIndex);
+  }
+}
+
+__global__ void ACPIgreenV_kernel(float* d_input,int d_inputWidth,int d_inputHeight,int d_inputStep,GPU::PtrStepSz<float3> gh){
+  const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+  const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+
+  //Only valid threads perform memory I/O
+  // x <= input.cols - 1 && y <= input.rows - 1 &&
+  float a=0.0,b=0.0,sum=0.0,d_value=0.0;
+  if((xIndex<d_inputWidth) && (yIndex<d_inputHeight)&& (yIndex >= 0) && (xIndex >= 0))
+  {  
+    if((xIndex<= d_inputWidth-4) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 2)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
+      
+      a=d_input[ (yIndex-1) *d_inputStep+xIndex]+d_input[(yIndex+1)*d_inputStep+xIndex];
+      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[(yIndex-2)*d_inputStep+xIndex]-d_input[(yIndex+2)*d_inputStep+xIndex];
+      sum = a+b/2;
+    }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-4)&& (yIndex >= 2) && (xIndex >= 3)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
+      a=d_input[ (yIndex-1) *d_inputStep+xIndex]+d_input[(yIndex+1)*d_inputStep+xIndex];
+      b=2*d_input[yIndex*d_inputStep+xIndex]-d_input[(yIndex-2)*d_inputStep+xIndex]-d_input[(yIndex+2)*d_inputStep+xIndex];
+      sum = a+b/2;
+    }else{
+      d_value=d_input[yIndex*d_inputStep+xIndex];
+      sum=d_value;
+    }
+    gh.data[yIndex*gh.step+xIndex]=sum;
+    // for(int i = 3; i < nRow - 2; i += 2){ y = 3 5 7 9....nRow-3
+    //   for(int j = 2; j < nCol - 3; j += 2){x=2 4 6 8 ...nCol-4
+    //     float a = CFA.atf(i-1,j) + CFA.atf(i+1,j);
+    //     float b = 2*CFA.atf(i,j) - CFA.atf(i-2,j) - CFA.atf(i+2,j);
+    //     green.atf(i,j) = (a+b)/2;
+    //   }
+    // }
+    // #pragma omp parallel for
+    // for(int i = 2; i < nRow - 2; i += 2){y = 2 4 6 ... nRow-4
+    //   for(int j = 3; j < nCol - 1; j += 2){x = 3 5 ... nCol - 3
+    //     float a = CFA.atf(i-1,j) + CFA.atf(i+1,j);
+    //     float b = CFA.atf(i,j) - CFA.atf(i-2,j) - CFA.atf(i+2,j);
+    //     green.atf(i,j) = (a+b)/2;
+    //   }
+    // }
+  }
+}
+
+
+// inline 
+void bayer_reverse_cuda(const cv::Mat& input){
   const int Bytes = input.step * input.rows;
-  uint8_t *d_input;
-  cudaMalloc ((uint8_t  **)&d_input,sizeof( uint8_t) *Bytes);
-  cudaMemcpy(d_input,input.data,sizeof(uint8_t) * Bytes,cudaMemcpyHostToDevice);
+  float *d_input;
+  cudaMalloc ((float  **)&d_input,Bytes);
+  cudaMemcpy(d_input,input.data, Bytes,cudaMemcpyHostToDevice);
   //cudaMemcpy(d_output,output.ptr(),Bytes,cudaMemcpyHostToDevice);
   dim3 block(BLOCK_SIZE,BLOCK_SIZE);
   // dim3 block(2,2);
@@ -90,8 +181,23 @@ inline void bayer_reverse_cuda(const cv::Mat& input){
   dim3 grid((input.cols+block.x -1)/block.x,(input.rows+block.y-1)/block.y);
   // std::cout<<(input.cols+block.x -1)/block.x <<"  "<<(input.rows+block.y-1)/block.y<<std::endl;
   bayer_reverse_kernel<<<grid,block>>>(d_input,input.cols,input.rows,input.step);
-  cudaDeviceSynchronize();
-  cudaMemcpy(input.data,d_input,sizeof(uint8_t) * Bytes,cudaMemcpyDeviceToHost);
+
+  // cudaDeviceSynchronize();
+  // float *gh;
+  // float *gv;
+  // cudaMalloc ((float  **)&gh,Bytes);
+  // cudaMalloc ((float  **)&gv,Bytes);
+  GpuMat gh(input.rows,input.cols,CV_32FC1,Scalar(0,0,0) );
+  GpuMat gv(input.rows,input.cols,CV_32FC1,Scalar(0,0,0) );
+  // gh = ACPIgreenH(CFA);
+  // gv = ACPIgreenV(CFA);
+  //DZ->jointDDFW -> ACPIgreenH
+  //DZ->jointDDFW -> ACPIgreenH
+  ACPIgreenH_kernel<<<grid,block>>>(d_input,input.cols,input.rows,input.step,gh);
+  ACPIgreenV_kernel<<<grid,block>>>(d_input,input.cols,input.rows,input.step,gv);
+  // G0, DM = jointDDFWgreen(CFA,gh,gv);
+  //jointDDFWgreen - >
+  // cudaMemcpy(input.data,d_input,sizeof(uint8_t) * Bytes,cudaMemcpyDeviceToHost);
   cudaFree(d_input);
 }
 // __global__ void cuda_bayer_reverse(unsigned char* img_input_cuda, unsigned char* img_output_cuda,int img_col, int img_row,  int img_border){
@@ -955,7 +1061,7 @@ int main(int argc, char* argv[]) {
   image = imread( argv[1] ,cv::IMREAD_COLOR);
   // cout<<"image type"<<image.type()<<endl;
   // image.convertTo(image, CV_8UC3);
-  // image.convertTo(imageFloat, CV_32FC3, 1/255.0);
+  image.convertTo(imageFloat, CV_32FC3, 1/255.0);
   // 檢查影像是否正確讀入
   if ( !image.data ) {
     printf("No image data n");
@@ -963,8 +1069,8 @@ int main(int argc, char* argv[]) {
   }
   // Mat small = imageFloat;
   Mat small;
-  resize(image,small, Size(),0.5,0.5 );
-  // resize(imageFloat,small, Size(),0.5,0.5 );
+  // resize(image,small, Size(),0.5,0.5 );
+  resize(imageFloat,small, Size(),0.5,0.5 );
   //cout<< image.channels()<<endl;
   Mat tmp,out,tmpfloat;
   vector<Mat> channels(3);
@@ -973,8 +1079,8 @@ int main(int argc, char* argv[]) {
     start = CycleTimer::currentSeconds();
     bayer_reverse_cuda(small);
     out_time = CycleTimer::currentSeconds() - start;
-    split(small, channels);
-    channels[0].convertTo(tmpfloat, CV_32FC3, 1/255.0);
+    // split(small, channels);
+    // channels[0].convertTo(tmpfloat, CV_32FC3, 1/255.0);
 
     // start = CycleTimer::currentSeconds();
     // tmp = bayer_reverse(small);
@@ -983,7 +1089,7 @@ int main(int argc, char* argv[]) {
     
 
 
-    out = DZ(tmpfloat); 
+    // out = DZ(tmpfloat); 
     
     sum+=out_time;
   }
