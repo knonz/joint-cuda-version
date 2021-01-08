@@ -161,7 +161,84 @@ __global__ void ACPIgreenV_kernel(float* d_input,int d_inputWidth,int d_inputHei
   }
 }
 
+_global_ void DDFW_refine_RG_diff_kernel(float* d_input,int d_inputWidth,int d_inputHeight,int d_inputStep,GPU::PtrStepSz<float3> gh){
+  const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+  const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
 
+  //Only valid threads perform memory I/O
+  // x <= input.cols - 1 && y <= input.rows - 1 &&
+  float a=0.0,b=0.0,sum=0.0,d_value=0.0;
+  if((xIndex<d_inputWidth) && (yIndex<d_inputHeight)&& (yIndex >= 0) && (xIndex >= 0))
+  {
+    // CFA.copyTo(green);
+    // a= d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
+    // b=d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+    
+    if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-2)&& (yIndex >= 4) && (xIndex >= 3)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
+      vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
+
+      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      b = w[0]+w[1]+w[2]+w[3];
+      sum = a/b;
+    }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 4) && (xIndex >= 4)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
+      vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
+
+      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      b = w[0]+w[1]+w[2]+w[3];
+      sum = a/b;
+    }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 3)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
+      vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
+
+      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      b = w[0]+w[1]+w[2]+w[3];
+      sum = a/b;
+    }else{
+      d_value=d_input[yIndex*d_inputStep+xIndex];
+      sum=d_value;
+    }
+    gh.data[yIndex*gh.step+xIndex]=sum;
+  }
+}
+
+
+_global_ void DDFW_refine_BG_diff_kernel(float* d_input,int d_inputWidth,int d_inputHeight,int d_inputStep,GPU::PtrStepSz<float3> gh){
+  const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+  const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+
+  //Only valid threads perform memory I/O
+  // x <= input.cols - 1 && y <= input.rows - 1 &&
+  float a=0.0,b=0.0,sum=0.0,d_value=0.0;
+  if((xIndex<d_inputWidth) && (yIndex<d_inputHeight)&& (yIndex >= 0) && (xIndex >= 0))
+  {
+    // CFA.copyTo(green);
+    // a= d_input[yIndex*d_inputStep+xIndex-1]+d_input[yIndex*d_inputStep+xIndex+1];
+    // b=d_input[yIndex*d_inputStep+xIndex]-d_input[yIndex*d_inputStep+xIndex-2]-d_input[yIndex*d_inputStep+xIndex+2];
+    
+    if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-4)&& (yIndex >= 3) && (xIndex >= 4)&& (yIndex%2 == 1)&& (xIndex%2 == 0)){
+      vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
+
+      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      b = w[0]+w[1]+w[2]+w[3];
+      sum = a/b;
+    }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 4) && (xIndex >= 4)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
+      vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
+
+      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      b = w[0]+w[1]+w[2]+w[3];
+      sum = a/b;
+    }else if((xIndex<= d_inputWidth-3) && (yIndex<=d_inputHeight-3)&& (yIndex >= 3) && (xIndex >= 3)&& (yIndex%2 == 0)&& (xIndex%2 == 1)){
+      vector<float> w = DDFWweights(d_input,xIndex,yIndex,1);
+
+      a = d_input[ (yIndex-1) *d_inputStep+xIndex]*w[0] + d_input[yIndex*d_inputStep+xIndex+1]*w[1] + d_input[(yIndex+1)*d_inputStep+xIndex]*w[2] + d_input[yIndex*d_inputStep+xIndex-1]*w[3];
+      b = w[0]+w[1]+w[2]+w[3];
+      sum = a/b;
+    }else{
+      d_value=d_input[yIndex*d_inputStep+xIndex];
+      sum=d_value;
+    }
+    gh.data[yIndex*gh.step+xIndex]=sum;
+  }
+}
 // inline 
 void bayer_reverse_cuda(const cv::Mat& input){
   const int Bytes = input.step * input.rows;
