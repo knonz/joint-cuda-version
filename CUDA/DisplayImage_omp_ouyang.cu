@@ -1010,17 +1010,18 @@ int main(int argc, char* argv[]) {
     sum+=out_time;
   }
 
-  cout<<"avg out_time:"<<sum/TESTITERAION<<endl;
+  cout<<"avg bayer_reverse out_time:"<<sum/TESTITERAION<<endl;
   // Mat img;
   // img.create(2,2,CV_8UC1);
-  Mat img2;
-  out.convertTo(img2, CV_8UC3, 255);
+  Mat image2;
+  out.convertTo(image2, CV_8UC3, 255);
   // image.convertTo(imageFloat, CV_8UC3, 255);
-  imwrite("ompoutput.jpg",img2 );
+  
+  
   // 建立視窗
   // namedWindow("Display Image", WINDOW_AUTOSIZE);
   // imshow("Display Image", image);
-
+  imwrite("PPOUTPUT.jpg",image );
   // // 顯示視窗，直到任何鍵盤輸入後才離開
   // waitKey(5);
   // vector<unsigned char> d(3840*2160);

@@ -832,7 +832,7 @@ int main(int argc, char* argv[]) {
   // resize(imageFloat,small, Size(),0.5,0.5 );
   //cout<< image.channels()<<endl;
   Mat tmp,out,tmpfloat;
-  // for(int i=0;i<5;i++){
+  for(int i=0;i<5;i++){
     start = CycleTimer::currentSeconds();
     tmp = bayer_reverse(small);
     // imwrite("tmp.jpg",tmp );
@@ -841,18 +841,21 @@ int main(int argc, char* argv[]) {
     // out = DZ(tmp); 
     out_time = CycleTimer::currentSeconds() - start;
     sum+=out_time;
-  // }
-  // cout<<"avg out_time:"<<sum/5.0<<endl;
-  cout<<"avg out_time:"<<sum<<endl;
+  }
+  cout<<"avg out_time:"<<sum/5.0<<endl;
+  // cout<<"avg out_time:"<<sum<<endl;
   // Mat img;
   // img.create(2,2,CV_8UC1);
-  Mat img2;
-  out.convertTo(img2, CV_8UC3, 255);
+  Mat image2;
+  out.convertTo(image2, CV_8UC3, 255);
   // image.convertTo(imageFloat, CV_8UC3, 255);
-  imwrite("PPOUTPUT.jpg",img2 );
+  
+  
   // 建立視窗
   // namedWindow("Display Image", WINDOW_AUTOSIZE);
-  
+  // 用視窗顯示影像
+  // imshow("Display Image", image);
+  imwrite("PPOUTPUT.jpg",image );
   // vector<unsigned char> d(3840*2160);
   // vector<unsigned char> e(3840*2160,87);
   // start = CycleTimer::currentSeconds();

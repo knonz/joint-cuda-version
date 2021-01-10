@@ -1171,15 +1171,15 @@ int main(int argc, char* argv[]) {
     sum+=out_time;
   }
 
-  cout<<"avg out_time:"<<sum/TESTITERAION<<endl;
+  cout<<"avg bayer_reverse_cuda out_time:"<<sum/TESTITERAION<<endl;
   // Mat img;
   // img.create(2,2,CV_8UC1);
-  Mat img2;
-  out.convertTo(img2, CV_8UC3, 255);
+  // Mat img2;
+  // out.convertTo(img2, CV_8UC3, 255);
 
 
-  // image.convertTo(imageFloat, CV_8UC3, 255);
-  imwrite("CUDAOUTPUT.jpg",img2 );
+  // // image.convertTo(imageFloat, CV_8UC3, 255);
+  // imwrite("CUDAOUTPUT.jpg",img2 );
 
 
 
